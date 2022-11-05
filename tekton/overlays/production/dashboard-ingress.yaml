@@ -1,0 +1,29 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/auth-url: "http://auth.119-8-58-20.nip.io:31080/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "http://auth.119-8-58-20.nip.io:31080/oauth2/sign_in?rd=http://$host:31080$request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Preferred-Username, X-Auth-Request-Groups
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      auth_request_set $groups           $upstream_http_x_auth_request_groups;
+      auth_request_set $email            $upstream_http_x_auth_request_email;
+      auth_request_set $preferred_user   $upstream_http_x_auth_request_preferred_username;
+      proxy_set_header Impersonate-User  $email;
+      proxy_set_header Impersonate-Group $groups;
+  name: pipeline1-tekton
+  namespace: tekton-pipelines
+spec:
+  rules:
+  - host: tekton.pipeline1.119-8-58-20.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: tekton-dashboard
+            port: 
+              number: 9097

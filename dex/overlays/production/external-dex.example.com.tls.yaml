@@ -1,0 +1,22 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: dex.example.com.tls
+  namespace: dex
+spec:
+  refreshInterval: "15s"
+  secretStoreRef:
+    name: dex-secretstore
+    kind: SecretStore
+  target:
+    name: dex.example.com.tls
+  data:
+  - secretKey: tls.crt
+    remoteRef:
+      key: pki/default
+      property: tls.crt
+  - secretKey: tls.key
+    remoteRef:
+      key: pki/default
+      property: tls.key
+  

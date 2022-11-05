@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-dex-server
+spec:
+  template:
+    spec:
+      volumes:
+      - name: idp-ca-secret
+        secret:
+          secretName: idp-ca-secret
+      containers:
+      - name: dex
+        volumeMounts:
+        - mountPath: /etc/ssl/certs/
+          name: idp-ca-secret

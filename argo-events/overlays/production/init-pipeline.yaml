@@ -1,0 +1,158 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: init-pipeilne
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: argo-events-sa
+  dependencies:
+    - name: github-dep-push
+      eventSourceName: webhook
+      eventName: user-project
+      transform:
+        script: |-
+          if event.body.ref == "refs/heads/main" then
+            event.body.pipeline='pipelines/test-deployment-pipeline.yaml'
+          elseif event.body.ref == "refs/heads/dev" then
+            event.body.pipeline='pipelines/dev-pipeline.yaml'
+          end
+          return event
+  triggers:
+    - template:
+        name: init-pipeine
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: tekton.dev/v1beta1
+              kind: PipelineRun
+              metadata:
+                generateName: init-pipiline-
+                namespace: user-pipelines
+              spec:
+                params:
+                - name: REVISION
+                  value: main
+                - name: PIPELINE
+                  value: pipelines/test-pipeline.yaml
+                taskRunSpecs:
+                - pipelineTaskName: nautes-reporter
+                  metadata:
+                    annotations:
+                      vault.hashicorp.com/agent-inject: 'true'
+                      vault.hashicorp.com/agent-pre-populate-only: "true"
+                      vault.hashicorp.com/role: 'user-pipelines'
+                      vault.hashicorp.com/agent-run-as-user: '0' 
+                      vault.hashicorp.com/agent-run-as-group: '0'
+                      vault.hashicorp.com/agent-inject-secret-token: "git/data/github/user-project/user-pipelines/api-admin"
+                      vault.hashicorp.com/secret-volume-path-token: "/var"
+                      vault.hashicorp.com/agent-inject-perms-token: '0400'
+                      vault.hashicorp.com/agent-inject-template-token: |
+                        {{- with secret "git/data/github/user-project/user-pipelines/api-admin" -}}
+                        {{ .Data.data.accesstoken }}
+                        {{- end -}}
+                pipelineSpec:
+                  params:
+                    - name: REVISION
+                      type: string
+                      description: Revision to checkout. (branch, tag, sha, ref, etc...)
+                      default: ""
+                    - name: PIPELINE
+                      type: string
+                      description: pipeline file.
+                      default: "pipelines/pipeline.yaml"
+                  tasks:
+                  - name: git-clone
+                    taskRef:
+                      name: git-clone
+                      kind: ClusterTask
+                    workspaces:
+                    - name: output
+                      workspace: source-volume
+                      subPath: $(params.REVISION)
+                    params:
+                    - name: url
+                      value: https://github.com/lanbingcloud/demo-user-project.git
+                    - name: sparseCheckoutDirectories
+                      value: $(params.PIPELINE)
+                    - name: revision
+                      value: $(params.REVISION)
+                  - name: pipeline-run
+                    runAfter:
+                    - git-clone
+                    taskRef:
+                      name: kubernetes-actions
+                      kind: ClusterTask
+                    params:
+                      - name: image
+                        value: gcr.io/cloud-builders/kubectl@sha256:c373e04fcc64c448e6cf9ebdde6fe67bb8c10b0df682da9210e1e965606b3af6
+                      - name: script
+                        value: |
+                          COMMIT=$(tasks.git-clone.results.commit)
+                          SHORT_SHA=${COMMIT: 0: 8}
+                          SUFFIX=`openssl rand -hex 2`
+                          REF=$(params.REVISION)
+                          BRANCH=${REF/refs\/heads\//}
+                          cat >./kustomization.yaml <<EOF
+                          apiVersion: kustomize.config.k8s.io/v1beta1
+                          kind: Kustomization
+                          resources:
+                          - $(params.PIPELINE)
+                          commonLabels:
+                            branch: $BRANCH
+                          patches:
+                          - patch: |-
+                              - op: replace
+                                path: /spec/params/0/value
+                                value: $(params.REVISION)
+                            target:
+                              kind: PipelineRun
+                          nameSuffix: -$SHORT_SHA-$SUFFIX
+                          EOF
+                          cat ./kustomization.yaml
+                          kubectl apply -k ./
+                    workspaces:
+                    - name: manifest-dir
+                      workspace: source-volume
+                      subPath: $(params.REVISION)
+                  - name: nautes-reporter
+                    runAfter:
+                    - pipeline-run
+                    taskRef:
+                      name: nautes-reporter
+                      kind: ClusterTask
+                    params:
+                      - name: OWNER
+                        value: owner
+                      - name: REPO
+                        value: repo
+                      - name: TEKTON_URL
+                        value: http://tekton.pipeline1.119-8-58-20.nip.io:31080
+                      - name: BRANCH
+                        value: $(params.REVISION)
+                      - name: COMMIT
+                        value: $(tasks.git-clone.results.commit)
+                  workspaces:
+                  - name: source-volume
+                workspaces:
+                - name: source-volume
+                  persistentVolumeClaim:
+                    claimName: source-pvc
+          parameters:
+            - src:
+                dependencyName: github-dep-push
+                dataKey: body.ref
+              dest: spec.params.0.value
+            - src:
+                dependencyName: github-dep-push
+                dataKey: body.pipeline
+              dest: spec.params.1.value
+            - src:
+                dependencyName: github-dep-push
+                dataKey: body.repository.owner.name
+              dest: spec.pipelineSpec.tasks.2.params.0.value
+            - src:
+                dependencyName: github-dep-push
+                dataKey: body.repository.name
+              dest: spec.pipelineSpec.tasks.2.params.1.value

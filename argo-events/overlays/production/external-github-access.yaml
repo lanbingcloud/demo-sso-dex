@@ -1,0 +1,22 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: github-access
+  namespace: argo-events
+spec:
+  refreshInterval: "15s"
+  secretStoreRef:
+    name: webhook-secretstore
+    kind: SecretStore
+  target:
+    name: github-access
+  data:
+  - secretKey: token
+    remoteRef:
+      key: github/user-project/argoevents/webhook-access
+      property: token
+  - secretKey: secret
+    remoteRef:
+      key: github/user-project/argoevents/webhook-access
+      property: secret
+  

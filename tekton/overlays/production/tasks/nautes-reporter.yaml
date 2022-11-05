@@ -1,0 +1,60 @@
+apiVersion: tekton.dev/v1beta1
+kind: ClusterTask
+metadata:
+  name: nautes-reporter
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/categories: Build Tools
+    tekton.dev/tags: build-tool
+    tekton.dev/platforms: "linux/amd64"
+spec:
+  description: >-
+    This Task can be used to report nautes pipeline status to gitlab.
+
+  params:
+    - name: NAUTES_BOT_IMAGE
+      type: string
+      description: base image
+      default: ghcr.io/nautes-labs/demo-bot:0.0.1-ed33fcbb3989ef79f28190b8eb75d23e09a2aafd
+    - name: OWNER
+      type: string
+    - name: REPO
+      type: string
+    - name: TEKTON_URL
+      type: string
+    - name: TOKEN_FILE_PATH
+      description: he path to the file containing the gitlab accesstoken
+      type: string
+      default: "/var/token"
+    - name: BRANCH
+      description: code repo branch
+      type: string
+      default: "master"
+    - name: COMMIT
+      description: commit_to in gitlab push event
+      type: string
+  steps:
+    - name: report
+      image: $(params.NAUTES_BOT_IMAGE)
+      env:
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      command: ["python"]
+      args:
+        - "nautes-reporter.py"
+        - "-o"
+        - "$(params.OWNER)"
+        - "-r"
+        - "$(params.REPO)"
+        - "-b"
+        - "$(params.BRANCH)"
+        - "-c"
+        - "$(params.COMMIT)"
+        - "-t"
+        - "$(params.TOKEN_FILE_PATH)"
+        - "-tu"
+        - "$(params.TEKTON_URL)"

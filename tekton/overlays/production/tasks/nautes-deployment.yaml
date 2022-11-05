@@ -1,0 +1,60 @@
+apiVersion: tekton.dev/v1beta1
+kind: ClusterTask
+metadata:
+  name: wait-deployment-complete
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/categories: Deployment
+    tekton.dev/tags: deploy
+    tekton.dev/displayName: "nautes-deployment"
+    tekton.dev/platforms: "linux/amd64"
+spec:
+  description: >-
+    This Task can be used to wait for the deployment task to complete.
+
+  params:
+    - name: NAUTES_BOT_IMAGE
+      type: string
+      description: base image
+      default: ghcr.io/nautes-labs/demo-bot:0.0.1-ba841f5efee7914798580606be150f1b5bc36ddb
+    - name: PROJECT
+      type: string
+    - name: APPLICATION
+      type: string
+    - name: COMMIT
+      type: string
+    - name: TIMEOUT
+      type: string
+    - name: EVENTBUS
+      type: string
+    - name: NAMESPACE
+      type: string
+  results:
+    - name: url
+      description: application server url.
+  steps:
+    - name: listener
+      image: $(params.NAUTES_BOT_IMAGE)
+      env:
+      - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+        value: "python"
+      command: ["python"]
+      args:
+        - "nautes-listener.py"
+        - "-p"
+        - "$(params.PROJECT)"
+        - "-a"
+        - "$(params.APPLICATION)"
+        - "-c"
+        - "$(params.COMMIT)"
+        - "-t"
+        - "$(params.TIMEOUT)"
+        - "-n"
+        - "$(params.NAMESPACE)"
+        - "-e"
+        - "$(params.EVENTBUS)"
+        - "-r"
+        - "$(results.url.path)"
+

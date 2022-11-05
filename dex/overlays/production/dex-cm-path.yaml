@@ -1,0 +1,36 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dex
+  namespace: dex
+data:
+  config.yaml: |
+    issuer: https://dex.119-8-58-20.nip.io:31443
+    storage:
+      type: memory
+    web:
+      https: 0.0.0.0:5556
+      tlsCert: /etc/dex/tls/tls.crt
+      tlsKey: /etc/dex/tls/tls.key
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $GITHUB_CLIENT_ID
+          clientSecret: $GITHUB_CLIENT_SECRET
+          redirectURI: https://dex.119-8-58-20.nip.io:31443/callback
+          orgs:
+            - name: lanbingcloud
+            - name: nautes-labs
+    oauth2:
+      skipApprovalScreen: true
+
+    staticClients:
+    - id: demo
+      redirectURIs:
+      - 'http://auth.119-8-58-20.nip.io:31080/oauth2/callback'
+      - 'https://argocd.deployment1.119-8-58-20.nip.io:30443/api/dex/callback'
+      - 'http://119.8.58.20:31555/callback'
+      name: 'Demo'
+      secret: ZXhhbXBsZS1hcHAtc2VjcmV0

@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: oauth2-proxy
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: demo-vcluster
+  source:
+    chart: oauth2-proxy
+    repoURL: https://oauth2-proxy.github.io/manifests
+    targetRevision: 6.3.0
+    helm:
+      values: |-
+        config:
+          clientID: demo
+          clientSecret: ZXhhbXBsZS1hcHAtc2VjcmV0
+
+        extraArgs:
+          provider: "oidc"
+          provider-display-name: "Dex"
+          whitelist-domain: ".119-8-58-20.nip.io:31080"
+          cookie-domain: ".119-8-58-20.nip.io"
+          redirect-url: "http://auth.119-8-58-20.nip.io:31080/oauth2/callback"
+          cookie-secure: "false"
+          cookie-secret: "MmmuXMlmtamw2XhgqNhKcuz3"
+          set-xauthrequest: "true"
+          pass-user-headers: "true"
+          oidc-issuer-url: "https://dex.119-8-58-20.nip.io:31443"
+          scope: "openid profile email groups"
+          oidc-groups-claim: "groups"
+          email-domain: "*"
+          skip-provider-button: "true"
+
+        ingress:
+          enabled: true
+          path: /
+          hosts:
+            - auth.119-8-58-20.nip.io
+          annotations:
+            kubernetes.io/ingress.class: nginx
+
+        extraVolumes:
+          - name: ca-bundle-cert
+            secret:
+              secretName: idp-ca-secret
+
+        extraVolumeMounts:
+          - mountPath: /etc/ssl/certs/
+            name: ca-bundle-cert
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: oauth2-proxy
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

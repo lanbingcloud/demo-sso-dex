@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../base
+- ./tasks
+- dashboard-ingress.yaml
+patchesStrategicMerge:
+- configmap-feature-flags-patch.yaml
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --logout-url=http://auth.119-8-58-20.nip.io:31080/oauth2/sign_out
+  target:
+    kind: Deployment
+    name: tekton-dashboard
+    namespace: tekton-pipelines
+namespace: tekton-pipelines

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: argocd
+  name: argocd-notifications-cm
+data:
+  service.webhook.deployments-status: |
+    url: http://user-webhook.pipeline1.119-8-58-20.nip.io:30080/deployments-status
+    headers:
+    - name: Content-Type
+      value: application/json
+  template.send-deployments-status: |
+    webhook:
+      deployments-status:
+        method: POST
+        body: |
+          {
+            "project": "{{.app.spec.project}}",
+            "application": "{{.app.metadata.name}}",
+            "revision": "{{.app.status.operationState.syncResult.revision}}",
+            "phase": "{{.app.status.operationState.phase}}",
+            "sync_status": "{{.app.status.sync.status}}",
+            "healthy": "{{.app.status.health.status}}",
+            "url": "http://devops-sample.119-8-58-20.nip.io:30080"
+          }
+  trigger.on-deployed: |
+    - description: Application is synced and healthy. Triggered once per commit.
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+      oncePer: app.status.sync.revision
+      send: [send-deployments-status]

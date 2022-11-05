@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.csv: |
+    p, role:role-developer, projects, get, demo-deployment, allow
+    p, role:role-developer, applications, get, demo-deployment/devops-sample, allow
+    p, role:role-developer, applications, sync, demo-deployment/devops-sample, allow
+    p, role:role-developer, exec, create, demo-deployment/devops-sample, allow
+    p, role:role-developer, logs, get, demo-deployment/devops-sample, allow
+    g, lanbingcloud:developer, role:role-developer

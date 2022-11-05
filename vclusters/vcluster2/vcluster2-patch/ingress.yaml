@@ -1,0 +1,51 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: ServersTransport
+metadata:
+  name: vcluster2-apiserver
+  namespace: vcluster2
+spec:
+  insecureSkipVerify: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vcluster2
+  namespace: vcluster2
+  annotations:
+    cert-manager.io/cluster-issuer: org-issuer
+spec:
+  rules:
+  - host: vcluster2.lanbing.tech
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: vcluster2-svc
+            port:
+              name: https
+  tls:
+  - hosts:
+    - vcluster2.lanbing.tech
+    secretName: vcluster2-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/service.serverstransport: vcluster2-vcluster2-apiserver@kubernetescrd
+  name: vcluster2-svc
+  namespace: vcluster2
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+    nodePort: 31544
+  selector:
+    app: vcluster
+  sessionAffinity: None
+  type: NodePort
+---
