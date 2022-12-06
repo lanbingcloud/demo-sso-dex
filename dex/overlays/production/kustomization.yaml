@@ -7,5 +7,5 @@ resources:
 - external-dex.example.com.tls.yaml
 - ingress-dex.yaml
 patchesStrategicMerge:
-- dex-cm-path.yaml
-- dex-deployment-path.yaml
+- dex-cm-patch.yaml
+- dex-deployment-patch.yaml
